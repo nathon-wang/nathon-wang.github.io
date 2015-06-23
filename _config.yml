@@ -60,6 +60,9 @@ time_format: HH:mm:ss
 per_page: 10
 pagination_dir: page
 
+plugins:
+- hexo-generator-cname
+
 # Extensions
 ## Plugins: http://hexo.io/plugins/
 ## Themes: http://hexo.io/themes/
@@ -69,5 +72,5 @@ theme: landscape
 ## Docs: http://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repositiory: git@github.com:nathon-wang/nathon-wang.github.io.git
+  repository: git@github.com:nathon-wang/nathon-wang.github.io.git
   branch: master
