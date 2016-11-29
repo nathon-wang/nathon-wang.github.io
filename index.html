@@ -241,6 +241,145 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/29/thumbnail-convert-prevent-steal/">
+
+  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="nathon.wang">
+    <meta itemprop="description" content="">
+    <meta itemprop="image" content="/images/avatar.gif">
+  </span>
+
+  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="汪南的魔法卷">
+    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+      <img style="display:none;" itemprop="url image" alt="汪南的魔法卷" src="">
+    </span>
+  </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2016/11/29/thumbnail-convert-prevent-steal/" itemprop="url">
+                  使用OpenResty防缩略图盗链
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2016-11-29T18:20:30+08:00">
+                2016-11-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <a href="/2016/11/29/thumbnail-convert-prevent-steal/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2016/11/29/thumbnail-convert-prevent-steal/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+
+          
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="thumbnail-convert.png" alt="基本的缩略图生成流程图"></p>
+<p>一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚拟目录，只要复制这个地址就可以绕过<br>验证机制随时访问缩略图，这很显然不是我们想要的。<br>我们的需求是：</p>
+<ol>
+<li>通过step1发起的请求能够正常访问缩略图，注意step1是有认证的请求</li>
+<li>绕过step1直接复制缩略图地址的请求静止访问缩略图</li>
+</ol>
+<p>这不就是防盗链么，google一下，发现有一个叫Referer的头，但是Referer是能轻松绕过的。于是乎，我就在想，能不能在返回的链接里加个标记并缓存这个标记，访问虚拟目录时将缓存中的标记delete。如果再访问这个虚拟目录<br>发现没有这个标记，那么就将请求deny调。这样就可以防止盗链了。说干就干<br>首先要将虚拟目录请求设置为内部访问</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location  /olc/image/thumbnail &#123;</div><div class="line">    internal; #此指令标示只能内部访问</div><div class="line">    alias /caches/olc/thumbnail;</div><div class="line">    autoindex off;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>其次我要做一个到虚拟目录的代理</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">location  ~ /olc/image/thumbnail/([a-z0-9]*)/(.*) &#123;</div><div class="line">    set $access_id $1;</div><div class="line">    set $resource_id $2;</div><div class="line">    set $access_type &quot;image/thumbnail&quot;;</div><div class="line">    rewrite_by_lua_file &apos;scripts/olc_access_check.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>其中规则([a-z0-9]*)就是我们要加的tag，这个tag是根据某种规则生成的一个md5值。然后获取去tag我们要去做验证，如果通过验证就重写请求到/olc/image/thumbnail，否则就返回403。这就是scripts/olc_access_check.lua中的内容</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">local</span> cache_ngx = ngx.shared.share_cache</div><div class="line"><span class="keyword">local</span> value = cache_ngx:get(ngx.var.access_id)</div><div class="line">cache_ngx:delete(ngx.var.access_id)</div><div class="line"><span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span></div><div class="line">  ngx.exit(<span class="number">403</span>)</div><div class="line"><span class="keyword">else</span></div><div class="line">    ngx.exec(<span class="string">"/olc/"</span> .. ngx.var.access_type .. <span class="string">"/"</span> ..ngx.var.resource_id);</div><div class="line"><span class="keyword">end</span></div><div class="line">~</div></pre></td></tr></table></figure>
+<p>当然因为get和delete不是原子操作，所以并发的情况下，还是有可能会有一些漏网之鱼，不过我认为完全是可以接受的。</p>
+<p>这个方案最大的好处还在于，只用在nginx内部完成，不用改其他代码。下面的代码通过拦截从下载代理返回的链接地址，并提出其中的Location字段，然后附加上tag，再更新Location。整个过程对无论对客户端还是下载代理都是透明的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location ~ /olc/image/view &#123;</div><div class="line">     proxy_pass http://127.0.0.1:6666;</div><div class="line">     include vhosts/cfgs/proxy.cfg;</div><div class="line">     header_filter_by_lua_file &apos;scripts/olc_access_set.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">local str = require &quot;resty.string&quot;</div><div class="line"></div><div class="line">local location = ngx.resp.get_headers()[&quot;Location&quot;]</div><div class="line">if location ~= nil then</div><div class="line">  local resource_path = string.match(location, &quot;.*/&quot;)</div><div class="line">  local resource_name = string.match(location, &quot;.*/(.*)&quot;)</div><div class="line">  local resource_type = string.match(string.sub(resource_path, 1, -1), &quot;.*/(.*)&quot;)</div><div class="line">  local stripped_resource_path = string.sub(resource_path, 1, -2)</div><div class="line">  local resource_type = string.match(stripped_resource_path, &quot;.*/(.*)&quot;)</div><div class="line">  if resource_type == &quot;thumbnail&quot; then</div><div class="line">    local tag = some_alg()</div><div class="line"></div><div class="line">    local cache_ngx = ngx.shared.share_cache</div><div class="line">    local succ, err, forcible = cache_ngx:set(tag, 1, 20)</div><div class="line">    local new_location =  resource_path .. tag .. &apos;/&apos; .. resource_name</div><div class="line">    ngx.header[&quot;Location&quot;] = new_location</div><div class="line">  end</div><div class="line">end</div></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
   <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/28/new-start/">
 
   <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -590,145 +729,6 @@
 <p>如果耐心点看上面的代码的话，就很容易知道，Tornado把context的管理抽象成一个状态机。每进入或退出一个StackContext状态机就发生一次变迁，<br>这也是为什么那个Thread.local的变量名字叫_state，_state[0]是历史路径上的所有的StackContext，_state[1]是当前的那个StackContext。如果你把<br>_state[0]看成一个栈，那么_state[1]就是栈的top指针了。这是一个小栈，同时还有一个大栈，这个大栈是不同时期的_state组成的。_state这个变量<br>就是top指针，每个时期的_state[1]里面有一个叫old_contexts的指针指向上一个时期的栈，这个大栈同时也是一个后插法构建的链表。说白了，_state的<br>栈与普通栈的不同就是普通栈进栈出栈只是在一个栈里面。而_state栈进栈会复制一个栈，出栈是回退到进栈之前的那个栈。这么多个栈肯定有点晕了。<br>画个图理解一下。<br><img src="/img/stack_context.png" alt="stack_context变迁图"><br>通过上面的StackContext使用语句with StackContext(some_factory)只是完成了我第二段代码里wrap(do_async)的操作，do_cb还没有wrap呢。<br>这个时候stack_context.wrap这个函数就出场了，这也是stack_context里面，唯一有点难度的代码，当然如果看懂了上面这个图，这段代码其实也很简单。<br>不多说，上代码。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">wrap</span><span class="params">(fn)</span>:</span></div><div class="line">    <span class="comment">#防止wrap被重复调用</span></div><div class="line">    <span class="keyword">if</span> fn <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> hasattr(fn, <span class="string">'_wrapped'</span>):</div><div class="line">        <span class="keyword">return</span> fn</div><div class="line"></div><div class="line">    <span class="comment">#这个变量很关键，是do_cb被wrap时的contexts。为啥要用list来装_state.contexts而不直接赋值呢？</span></div><div class="line">    <span class="comment">#其实很简单，因为python2.x中只能访问闭包中的变量不能修改。直到python3.x才有nonlocal关键字。</span></div><div class="line">    <span class="comment">#把_state.contexts放到列表里，列表本身不会被修改，但是列表中的内容却可以修改，tornado源码很多地方也用了此技术。</span></div><div class="line">    cap_contexts = [_state.contexts]</div><div class="line"></div><div class="line">    <span class="comment">#如果当前没有contexts，也是就是_state == ((), None)。这个时候没有必要进行wrapped这个耗的操作，直接走捷径。</span></div><div class="line">    <span class="keyword">if</span> <span class="keyword">not</span> cap_contexts[<span class="number">0</span>][<span class="number">0</span>] <span class="keyword">and</span> <span class="keyword">not</span> cap_contexts[<span class="number">0</span>][<span class="number">1</span>]:</div><div class="line">        <span class="function"><span class="keyword">def</span> <span class="title">null_wrapper</span><span class="params">(*args, **kwargs)</span>:</span></div><div class="line">            <span class="keyword">try</span>:</div><div class="line">                current_state = _state.contexts</div><div class="line">                _state.contexts = cap_contexts[<span class="number">0</span>]</div><div class="line">                <span class="keyword">return</span> fn(*args, **kwargs)</div><div class="line">            <span class="keyword">finally</span>:</div><div class="line">                _state.contexts = current_state</div><div class="line">        null_wrapper._wrapped = <span class="keyword">True</span></div><div class="line">        <span class="keyword">return</span> null_wrapper</div><div class="line"></div><div class="line">    <span class="comment">#_state有内容则返回wrapped</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">(*args, **kwargs)</span>:</span></div><div class="line">        ret = <span class="keyword">None</span></div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            <span class="comment">#这个是函数do_cb执行时的contexts，也就是当前的contexts与上面的cap_contexts不是一回事，上面是生成闭包时，下面是执行闭包时</span></div><div class="line">            <span class="comment">#注意这个两个时间的不同。这两个时间之间可能已经进入和退出了很多的StackContext。这也是为什么要设计成进入</span></div><div class="line">            <span class="comment">#StackContext就要保存前一个_state栈并复制一份修改复制的而不是直接修改前一个，因为这样可以很方便回退到前面的_state。</span></div><div class="line">            current_state = _state.contexts</div><div class="line"></div><div class="line">            <span class="comment">#删除那些deactivate被调用过的StackContext。前文也说过可以用deactivate取消StackContext的传播。</span></div><div class="line">            <span class="comment">#_remove_deactivated在下面单讲。</span></div><div class="line">            cap_contexts[<span class="number">0</span>] = contexts = _remove_deactivated(cap_contexts[<span class="number">0</span>])</div><div class="line"></div><div class="line">            <span class="comment">#恢复状态到生成闭包时的，这样do_cb就和do_async处于同样的执行环境了。</span></div><div class="line">            _state.contexts = contexts</div><div class="line"></div><div class="line">            exc = (<span class="keyword">None</span>, <span class="keyword">None</span>, <span class="keyword">None</span>)</div><div class="line">            top = <span class="keyword">None</span></div><div class="line"></div><div class="line">            <span class="comment">#从这开始，开始执行_state[0]中的每一个context，执行其__enter__方法进入context，执行其__exit__方法退出context，处理执行过程中可能发生异常。</span></div><div class="line">            last_ctx = <span class="number">0</span></div><div class="line">            stack = contexts[<span class="number">0</span>]</div><div class="line"></div><div class="line">            <span class="comment">#按顺序进入context</span></div><div class="line">            <span class="keyword">for</span> n <span class="keyword">in</span> stack:</div><div class="line">                <span class="keyword">try</span>:</div><div class="line">                    n.enter()</div><div class="line">                    last_ctx += <span class="number">1</span></div><div class="line">                <span class="keyword">except</span>:</div><div class="line">                    <span class="comment">#context.__enter__也可能会发生异常，要处理这种情况。top指针指向发生了异常的前一个StackContext。</span></div><div class="line">                    <span class="comment">#因为发生enter异常的那个StackContext我们没有进入，所以也没有必要在异常发生的时候去调用exit退出。</span></div><div class="line">                    <span class="comment">#对比_handle_exception和处理fn调用时发生异常的top = contexts[1]来理解一下这段代码</span></div><div class="line">                    exc = sys.exc_info()</div><div class="line">                    top = n.old_contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">            <span class="comment">#如果没有发生异常就执行fn，如果执行fn的过程中发生了异常，则top就是指向当前那个StackContext</span></div><div class="line">            <span class="keyword">if</span> top <span class="keyword">is</span> <span class="keyword">None</span>:</div><div class="line">                <span class="keyword">try</span>:</div><div class="line">                    ret = fn(*args, **kwargs)</div><div class="line">                <span class="keyword">except</span>:</div><div class="line">                    exc = sys.exc_info()</div><div class="line">                    <span class="comment">#因为当前的StackContext已经调用enter，所以top指向了当前的StackContext，在_handle_exception中调用exit</span></div><div class="line">                    top = contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">            <span class="comment">#如果发生了异常就处理异常</span></div><div class="line">            <span class="keyword">if</span> top <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">                exc = _handle_exception(top, exc)</div><div class="line">            <span class="keyword">else</span>:</div><div class="line">                <span class="comment">#反向调用context.__exit__</span></div><div class="line">                <span class="keyword">while</span> last_ctx &gt; <span class="number">0</span>:</div><div class="line">                    last_ctx -= <span class="number">1</span></div><div class="line">                    c = stack[last_ctx]</div><div class="line"></div><div class="line">                    <span class="keyword">try</span>:</div><div class="line">                        c.exit(*exc)</div><div class="line">                    <span class="keyword">except</span>:</div><div class="line">                        exc = sys.exc_info()</div><div class="line">                        top = c.old_contexts[<span class="number">1</span>]</div><div class="line">                        <span class="keyword">break</span></div><div class="line">                <span class="keyword">else</span>:</div><div class="line">                    top = <span class="keyword">None</span></div><div class="line"></div><div class="line">                <span class="keyword">if</span> top <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">                    exc = _handle_exception(top, exc)</div><div class="line"></div><div class="line">            <span class="keyword">if</span> exc != (<span class="keyword">None</span>, <span class="keyword">None</span>, <span class="keyword">None</span>):</div><div class="line">                raise_exc_info(exc)</div><div class="line">        <span class="keyword">finally</span>:</div><div class="line">            这里恢复为执行do_cb之前的_state</div><div class="line">            _state.contexts = current_state</div><div class="line">        <span class="keyword">return</span> ret</div><div class="line"></div><div class="line">    wrapped._wrapped = <span class="keyword">True</span></div><div class="line">    <span class="keyword">return</span> wrapped</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_remove_deactivated</span><span class="params">(contexts)</span>:</span></div><div class="line">    <span class="comment">#首先移除掉contexts[0]中没有激活的context</span></div><div class="line">    stack_contexts = tuple([h <span class="keyword">for</span> h <span class="keyword">in</span> contexts[<span class="number">0</span>] <span class="keyword">if</span> h.active])</div><div class="line"></div><div class="line">    <span class="comment">#上面只是移掉了当前_state里面的那些未激活的StackContext，但是没有移掉由_state[1].old_contexts链接的</span></div><div class="line">    <span class="comment">#那个大栈中的未激活的StackContext，下面的操作就是清理那个大栈（单链表）</span></div><div class="line">    <span class="comment">#首先是找到一个处于激活状态的header</span></div><div class="line">    head = contexts[<span class="number">1</span>]</div><div class="line">    <span class="keyword">while</span> head <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span> <span class="keyword">and</span> <span class="keyword">not</span> head.active:</div><div class="line">        head = head.old_contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">    <span class="comment">#下面是单指针链表删除指定条件的节点。删除指定条件的节点，首先要找到其前一个节点，然后将这个节点的指针指向</span></div><div class="line">    <span class="comment">#要删除节点的下一个节点。对单链表不熟的同学可以google一下。</span></div><div class="line">    ctx = head</div><div class="line">    <span class="keyword">while</span> ctx <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">        parent = ctx.old_contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">        <span class="keyword">while</span> parent <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">            <span class="keyword">if</span> parent.active:</div><div class="line">                <span class="keyword">break</span></div><div class="line">            ctx.old_contexts = parent.old_contexts</div><div class="line">            parent = parent.old_contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">        ctx = parent</div><div class="line"></div><div class="line">    <span class="keyword">return</span> (stack_contexts, head)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_exception</span><span class="params">(tail, exc)</span>:</span></div><div class="line">    <span class="comment">#这里从发生异常的StackContext开始，顺着old_contexts指针向前传播异常并调用用exit退出进入过的context。</span></div><div class="line">    <span class="comment">#注意contextmanager可以通过context.__exit__返回True来阻止异常进一步的传播。这也是为什么tail.exit(*exc) == True</span></div><div class="line">    <span class="comment">#时要将exc设置为(None, None, None)</span></div><div class="line">    <span class="keyword">while</span> tail <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            <span class="keyword">if</span> tail.exit(*exc):</div><div class="line">                exc = (<span class="keyword">None</span>, <span class="keyword">None</span>, <span class="keyword">None</span>)</div><div class="line">        <span class="keyword">except</span>:</div><div class="line">            exc = sys.exc_info()</div><div class="line"></div><div class="line">        tail = tail.old_contexts[<span class="number">1</span>]</div><div class="line"></div><div class="line">    <span class="keyword">return</span> exc</div></pre></td></tr></table></figure>
 <p>打个比喻好来说下stack_context的机制，就好像你出远门了，家里面每天吃什么你都不知道，于是你爸妈就把家里每天吃的都录下来，等你回家了按照录像里的重做一遍。<br>好了基本的都说的差不多了。ExceptionContext就是StackContext的简化版本，有兴趣的童鞋可以去看看，其实Tornado中用ExceptionContext用的更多一点，因为<br>异常处理的地方很多，使用StackContext管理资源的就少一点了。下一篇准备来聊聊IOLoop。</p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-  <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/07/14/thumbnail-convert-prevent-steal/">
-
-  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
-    <meta itemprop="name" content="nathon.wang">
-    <meta itemprop="description" content="">
-    <meta itemprop="image" content="/images/avatar.gif">
-  </span>
-
-  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-    <meta itemprop="name" content="汪南的魔法卷">
-    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
-      <img style="display:none;" itemprop="url image" alt="汪南的魔法卷" src="">
-    </span>
-  </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2015/07/14/thumbnail-convert-prevent-steal/" itemprop="url">
-                  使用OpenResty防缩略图盗链
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2015-07-14T11:35:07+08:00">
-                2015-07-14
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
-                <a href="/2015/07/14/thumbnail-convert-prevent-steal/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count ds-thread-count" data-thread-key="2015/07/14/thumbnail-convert-prevent-steal/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
-
-          
-
-          
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><img src="thumbnail-convert.png" alt="基本的缩略图生成流程图"></p>
-<p>一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚拟目录，只要复制这个地址就可以绕过<br>验证机制随时访问缩略图，这很显然不是我们想要的。<br>我们的需求是：</p>
-<ol>
-<li>通过step1发起的请求能够正常访问缩略图，注意step1是有认证的请求</li>
-<li>绕过step1直接复制缩略图地址的请求静止访问缩略图</li>
-</ol>
-<p>这不就是防盗链么，google一下，发现有一个叫Referer的头，但是Referer是能轻松绕过的。于是乎，我就在想，能不能在返回的链接里加个标记并缓存这个标记，访问虚拟目录时将缓存中的标记delete。如果再访问这个虚拟目录<br>发现没有这个标记，那么就将请求deny调。这样就可以防止盗链了。说干就干<br>首先要将虚拟目录请求设置为内部访问</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location  /olc/image/thumbnail &#123;</div><div class="line">    internal; #此指令标示只能内部访问</div><div class="line">    alias /caches/olc/thumbnail;</div><div class="line">    autoindex off;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>其次我要做一个到虚拟目录的代理</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">location  ~ /olc/image/thumbnail/([a-z0-9]*)/(.*) &#123;</div><div class="line">    set $access_id $1;</div><div class="line">    set $resource_id $2;</div><div class="line">    set $access_type &quot;image/thumbnail&quot;;</div><div class="line">    rewrite_by_lua_file &apos;scripts/olc_access_check.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>其中规则([a-z0-9]*)就是我们要加的tag，这个tag是根据某种规则生成的一个md5值。然后获取去tag我们要去做验证，如果通过验证就重写请求到/olc/image/thumbnail，否则就返回403。这就是scripts/olc_access_check.lua中的内容</p>
-<figure class="highlight lua"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">local</span> cache_ngx = ngx.shared.share_cache</div><div class="line"><span class="keyword">local</span> value = cache_ngx:get(ngx.var.access_id)</div><div class="line">cache_ngx:delete(ngx.var.access_id)</div><div class="line"><span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span></div><div class="line">  ngx.exit(<span class="number">403</span>)</div><div class="line"><span class="keyword">else</span></div><div class="line">    ngx.exec(<span class="string">"/olc/"</span> .. ngx.var.access_type .. <span class="string">"/"</span> ..ngx.var.resource_id);</div><div class="line"><span class="keyword">end</span></div><div class="line">~</div></pre></td></tr></table></figure>
-<p>当然因为get和delete不是原子操作，所以并发的情况下，还是有可能会有一些漏网之鱼，不过我认为完全是可以接受的。</p>
-<p>这个方案最大的好处还在于，只用在nginx内部完成，不用改其他代码。下面的代码通过拦截从下载代理返回的链接地址，并提出其中的Location字段，然后附加上tag，再更新Location。整个过程对无论对客户端还是下载代理都是透明的。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location ~ /olc/image/view &#123;</div><div class="line">     proxy_pass http://127.0.0.1:6666;</div><div class="line">     include vhosts/cfgs/proxy.cfg;</div><div class="line">     header_filter_by_lua_file &apos;scripts/olc_access_set.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">local str = require &quot;resty.string&quot;</div><div class="line"></div><div class="line">local location = ngx.resp.get_headers()[&quot;Location&quot;]</div><div class="line">if location ~= nil then</div><div class="line">  local resource_path = string.match(location, &quot;.*/&quot;)</div><div class="line">  local resource_name = string.match(location, &quot;.*/(.*)&quot;)</div><div class="line">  local resource_type = string.match(string.sub(resource_path, 1, -1), &quot;.*/(.*)&quot;)</div><div class="line">  local stripped_resource_path = string.sub(resource_path, 1, -2)</div><div class="line">  local resource_type = string.match(stripped_resource_path, &quot;.*/(.*)&quot;)</div><div class="line">  if resource_type == &quot;thumbnail&quot; then</div><div class="line">    local tag = some_alg()</div><div class="line"></div><div class="line">    local cache_ngx = ngx.shared.share_cache</div><div class="line">    local succ, err, forcible = cache_ngx:set(tag, 1, 20)</div><div class="line">    local new_location =  resource_path .. tag .. &apos;/&apos; .. resource_name</div><div class="line">    ngx.header[&quot;Location&quot;] = new_location</div><div class="line">  end</div><div class="line">end</div></pre></td></tr></table></figure>
 
           
         

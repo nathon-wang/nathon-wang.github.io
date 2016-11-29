@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2016-11-29T07:09:24.000Z</updated>
+  <updated>2016-11-29T10:20:22.000Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -14,6 +14,47 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>使用OpenResty防缩略图盗链</title>
+    <link href="http://yoursite.com/2016/11/29/thumbnail-convert-prevent-steal/"/>
+    <id>http://yoursite.com/2016/11/29/thumbnail-convert-prevent-steal/</id>
+    <published>2016-11-29T10:20:30.000Z</published>
+    <updated>2016-11-29T10:20:22.000Z</updated>
+    
+    <content type="html"><![CDATA[<p><img src="thumbnail-convert.png" alt="基本的缩略图生成流程图"></p>
+<p>一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚拟目录，只要复制这个地址就可以绕过<br>验证机制随时访问缩略图，这很显然不是我们想要的。<br>我们的需求是：</p>
+<ol>
+<li>通过step1发起的请求能够正常访问缩略图，注意step1是有认证的请求</li>
+<li>绕过step1直接复制缩略图地址的请求静止访问缩略图</li>
+</ol>
+<p>这不就是防盗链么，google一下，发现有一个叫Referer的头，但是Referer是能轻松绕过的。于是乎，我就在想，能不能在返回的链接里加个标记并缓存这个标记，访问虚拟目录时将缓存中的标记delete。如果再访问这个虚拟目录<br>发现没有这个标记，那么就将请求deny调。这样就可以防止盗链了。说干就干<br>首先要将虚拟目录请求设置为内部访问</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location  /olc/image/thumbnail &#123;</div><div class="line">    internal; #此指令标示只能内部访问</div><div class="line">    alias /caches/olc/thumbnail;</div><div class="line">    autoindex off;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>其次我要做一个到虚拟目录的代理</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">location  ~ /olc/image/thumbnail/([a-z0-9]*)/(.*) &#123;</div><div class="line">    set $access_id $1;</div><div class="line">    set $resource_id $2;</div><div class="line">    set $access_type &quot;image/thumbnail&quot;;</div><div class="line">    rewrite_by_lua_file &apos;scripts/olc_access_check.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>其中规则([a-z0-9]*)就是我们要加的tag，这个tag是根据某种规则生成的一个md5值。然后获取去tag我们要去做验证，如果通过验证就重写请求到/olc/image/thumbnail，否则就返回403。这就是scripts/olc_access_check.lua中的内容</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">local</span> cache_ngx = ngx.shared.share_cache</div><div class="line"><span class="keyword">local</span> value = cache_ngx:get(ngx.var.access_id)</div><div class="line">cache_ngx:delete(ngx.var.access_id)</div><div class="line"><span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span></div><div class="line">  ngx.exit(<span class="number">403</span>)</div><div class="line"><span class="keyword">else</span></div><div class="line">    ngx.exec(<span class="string">"/olc/"</span> .. ngx.var.access_type .. <span class="string">"/"</span> ..ngx.var.resource_id);</div><div class="line"><span class="keyword">end</span></div><div class="line">~</div></pre></td></tr></table></figure>
+<p>当然因为get和delete不是原子操作，所以并发的情况下，还是有可能会有一些漏网之鱼，不过我认为完全是可以接受的。</p>
+<p>这个方案最大的好处还在于，只用在nginx内部完成，不用改其他代码。下面的代码通过拦截从下载代理返回的链接地址，并提出其中的Location字段，然后附加上tag，再更新Location。整个过程对无论对客户端还是下载代理都是透明的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location ~ /olc/image/view &#123;</div><div class="line">     proxy_pass http://127.0.0.1:6666;</div><div class="line">     include vhosts/cfgs/proxy.cfg;</div><div class="line">     header_filter_by_lua_file &apos;scripts/olc_access_set.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">local str = require &quot;resty.string&quot;</div><div class="line"></div><div class="line">local location = ngx.resp.get_headers()[&quot;Location&quot;]</div><div class="line">if location ~= nil then</div><div class="line">  local resource_path = string.match(location, &quot;.*/&quot;)</div><div class="line">  local resource_name = string.match(location, &quot;.*/(.*)&quot;)</div><div class="line">  local resource_type = string.match(string.sub(resource_path, 1, -1), &quot;.*/(.*)&quot;)</div><div class="line">  local stripped_resource_path = string.sub(resource_path, 1, -2)</div><div class="line">  local resource_type = string.match(stripped_resource_path, &quot;.*/(.*)&quot;)</div><div class="line">  if resource_type == &quot;thumbnail&quot; then</div><div class="line">    local tag = some_alg()</div><div class="line"></div><div class="line">    local cache_ngx = ngx.shared.share_cache</div><div class="line">    local succ, err, forcible = cache_ngx:set(tag, 1, 20)</div><div class="line">    local new_location =  resource_path .. tag .. &apos;/&apos; .. resource_name</div><div class="line">    ngx.header[&quot;Location&quot;] = new_location</div><div class="line">  end</div><div class="line">end</div></pre></td></tr></table></figure>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;&lt;img src=&quot;thumbnail-convert.png&quot; alt=&quot;基本的缩略图生成流程图&quot;&gt;&lt;/p&gt;
+&lt;p&gt;一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚
+    
+    </summary>
+    
+    
+      <category term="原创" scheme="http://yoursite.com/tags/%E5%8E%9F%E5%88%9B/"/>
+    
+      <category term="openresty" scheme="http://yoursite.com/tags/openresty/"/>
+    
+      <category term="技术" scheme="http://yoursite.com/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+  </entry>
   
   <entry>
     <title>计划：过去，现在与未来</title>
@@ -101,47 +142,6 @@
       <category term="Python" scheme="http://yoursite.com/tags/Python/"/>
     
       <category term="Tornado" scheme="http://yoursite.com/tags/Tornado/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>使用OpenResty防缩略图盗链</title>
-    <link href="http://yoursite.com/2015/07/14/thumbnail-convert-prevent-steal/"/>
-    <id>http://yoursite.com/2015/07/14/thumbnail-convert-prevent-steal/</id>
-    <published>2015-07-14T03:35:07.000Z</published>
-    <updated>2016-11-29T10:15:55.000Z</updated>
-    
-    <content type="html"><![CDATA[<p><img src="thumbnail-convert.png" alt="基本的缩略图生成流程图"></p>
-<p>一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚拟目录，只要复制这个地址就可以绕过<br>验证机制随时访问缩略图，这很显然不是我们想要的。<br>我们的需求是：</p>
-<ol>
-<li>通过step1发起的请求能够正常访问缩略图，注意step1是有认证的请求</li>
-<li>绕过step1直接复制缩略图地址的请求静止访问缩略图</li>
-</ol>
-<p>这不就是防盗链么，google一下，发现有一个叫Referer的头，但是Referer是能轻松绕过的。于是乎，我就在想，能不能在返回的链接里加个标记并缓存这个标记，访问虚拟目录时将缓存中的标记delete。如果再访问这个虚拟目录<br>发现没有这个标记，那么就将请求deny调。这样就可以防止盗链了。说干就干<br>首先要将虚拟目录请求设置为内部访问</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location  /olc/image/thumbnail &#123;</div><div class="line">    internal; #此指令标示只能内部访问</div><div class="line">    alias /caches/olc/thumbnail;</div><div class="line">    autoindex off;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>其次我要做一个到虚拟目录的代理</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">location  ~ /olc/image/thumbnail/([a-z0-9]*)/(.*) &#123;</div><div class="line">    set $access_id $1;</div><div class="line">    set $resource_id $2;</div><div class="line">    set $access_type &quot;image/thumbnail&quot;;</div><div class="line">    rewrite_by_lua_file &apos;scripts/olc_access_check.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>其中规则([a-z0-9]*)就是我们要加的tag，这个tag是根据某种规则生成的一个md5值。然后获取去tag我们要去做验证，如果通过验证就重写请求到/olc/image/thumbnail，否则就返回403。这就是scripts/olc_access_check.lua中的内容</p>
-<figure class="highlight lua"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">local</span> cache_ngx = ngx.shared.share_cache</div><div class="line"><span class="keyword">local</span> value = cache_ngx:get(ngx.var.access_id)</div><div class="line">cache_ngx:delete(ngx.var.access_id)</div><div class="line"><span class="keyword">if</span> value == <span class="keyword">nil</span> <span class="keyword">then</span></div><div class="line">  ngx.exit(<span class="number">403</span>)</div><div class="line"><span class="keyword">else</span></div><div class="line">    ngx.exec(<span class="string">"/olc/"</span> .. ngx.var.access_type .. <span class="string">"/"</span> ..ngx.var.resource_id);</div><div class="line"><span class="keyword">end</span></div><div class="line">~</div></pre></td></tr></table></figure>
-<p>当然因为get和delete不是原子操作，所以并发的情况下，还是有可能会有一些漏网之鱼，不过我认为完全是可以接受的。</p>
-<p>这个方案最大的好处还在于，只用在nginx内部完成，不用改其他代码。下面的代码通过拦截从下载代理返回的链接地址，并提出其中的Location字段，然后附加上tag，再更新Location。整个过程对无论对客户端还是下载代理都是透明的。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location ~ /olc/image/view &#123;</div><div class="line">     proxy_pass http://127.0.0.1:6666;</div><div class="line">     include vhosts/cfgs/proxy.cfg;</div><div class="line">     header_filter_by_lua_file &apos;scripts/olc_access_set.lua&apos;;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">local str = require &quot;resty.string&quot;</div><div class="line"></div><div class="line">local location = ngx.resp.get_headers()[&quot;Location&quot;]</div><div class="line">if location ~= nil then</div><div class="line">  local resource_path = string.match(location, &quot;.*/&quot;)</div><div class="line">  local resource_name = string.match(location, &quot;.*/(.*)&quot;)</div><div class="line">  local resource_type = string.match(string.sub(resource_path, 1, -1), &quot;.*/(.*)&quot;)</div><div class="line">  local stripped_resource_path = string.sub(resource_path, 1, -2)</div><div class="line">  local resource_type = string.match(stripped_resource_path, &quot;.*/(.*)&quot;)</div><div class="line">  if resource_type == &quot;thumbnail&quot; then</div><div class="line">    local tag = some_alg()</div><div class="line"></div><div class="line">    local cache_ngx = ngx.shared.share_cache</div><div class="line">    local succ, err, forcible = cache_ngx:set(tag, 1, 20)</div><div class="line">    local new_location =  resource_path .. tag .. &apos;/&apos; .. resource_name</div><div class="line">    ngx.header[&quot;Location&quot;] = new_location</div><div class="line">  end</div><div class="line">end</div></pre></td></tr></table></figure>
-]]></content>
-    
-    <summary type="html">
-    
-      &lt;p&gt;&lt;img src=&quot;thumbnail-convert.png&quot; alt=&quot;基本的缩略图生成流程图&quot;&gt;&lt;/p&gt;
-&lt;p&gt;一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚
-    
-    </summary>
-    
-    
-      <category term="原创" scheme="http://yoursite.com/tags/%E5%8E%9F%E5%88%9B/"/>
-    
-      <category term="openresty" scheme="http://yoursite.com/tags/openresty/"/>
-    
-      <category term="技术" scheme="http://yoursite.com/tags/%E6%8A%80%E6%9C%AF/"/>
     
   </entry>
   
