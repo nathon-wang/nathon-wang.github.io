@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>http://yoursite.com/tags/index.html</loc>
+    
+    <lastmod>2016-11-29T06:23:59.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/categories/index.html</loc>
+    
+    <lastmod>2016-11-29T06:20:35.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2016/11/28/new-start/</loc>
+    
+    <lastmod>2016-11-28T11:53:05.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2015/06/23/first-blog/</loc>
+    
+    <lastmod>2016-11-28T08:14:10.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2015/06/24/tornado-source-insight-01-gen/</loc>
+    
+    <lastmod>2016-11-28T08:14:10.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2015/07/14/tornado-source-insight-02-stack-context-md/</loc>
+    
+    <lastmod>2016-11-28T08:14:10.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://yoursite.com/2015/07/18/tornado-source-insight-03-event-loop/</loc>
+    
+    <lastmod>2016-11-28T08:14:10.000Z</lastmod>
+    
+  </url>
+  
+</urlset>

@@ -1,0 +1,656 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="原创,Python,Tornado," />
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="汪南的魔法卷" type="application/atom+xml" />
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="用Tornado也有一段时间，Tornado的文档还是比较匮乏的，但是幸好其代码短小精悍，很有可读性，遇到问题时总是习惯深入到其源码中。这对于提升自己的Python水平和对于网络及HTTP的协议的理解也很有帮助。本文是Tornado源码系列的第一篇文章，网上关于Tornado源码分析的文章也不少，大多是从Event loop入手，分析Event loop的工作原理，以及在其上如何构建TCPServ">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Tornado源码分析系列之一: 化异步为'同步'的Future和gen.coroutine">
+<meta property="og:url" content="http://yoursite.com/2015/06/24/tornado-source-insight-01-gen/index.html">
+<meta property="og:site_name" content="汪南的魔法卷">
+<meta property="og:description" content="用Tornado也有一段时间，Tornado的文档还是比较匮乏的，但是幸好其代码短小精悍，很有可读性，遇到问题时总是习惯深入到其源码中。这对于提升自己的Python水平和对于网络及HTTP的协议的理解也很有帮助。本文是Tornado源码系列的第一篇文章，网上关于Tornado源码分析的文章也不少，大多是从Event loop入手，分析Event loop的工作原理，以及在其上如何构建TCPServ">
+<meta property="og:updated_time" content="2016-11-28T08:14:10.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Tornado源码分析系列之一: 化异步为'同步'的Future和gen.coroutine">
+<meta name="twitter:description" content="用Tornado也有一段时间，Tornado的文档还是比较匮乏的，但是幸好其代码短小精悍，很有可读性，遇到问题时总是习惯深入到其源码中。这对于提升自己的Python水平和对于网络及HTTP的协议的理解也很有帮助。本文是Tornado源码系列的第一篇文章，网上关于Tornado源码分析的文章也不少，大多是从Event loop入手，分析Event loop的工作原理，以及在其上如何构建TCPServ">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2015/06/24/tornado-source-insight-01-gen/"/>
+
+
+
+
+
+  <title> Tornado源码分析系列之一: 化异步为'同步'的Future和gen.coroutine | 汪南的魔法卷 </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">汪南的魔法卷</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle"></p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/06/24/tornado-source-insight-01-gen/">
+
+  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="nathon.wang">
+    <meta itemprop="description" content="">
+    <meta itemprop="image" content="/images/avatar.gif">
+  </span>
+
+  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="汪南的魔法卷">
+    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+      <img style="display:none;" itemprop="url image" alt="汪南的魔法卷" src="">
+    </span>
+  </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Tornado源码分析系列之一: 化异步为'同步'的Future和gen.coroutine
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2015-06-24T10:37:07+08:00">
+                2015-06-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <a href="/2015/06/24/tornado-source-insight-01-gen/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2015/06/24/tornado-source-insight-01-gen/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+
+          
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>用Tornado也有一段时间，Tornado的文档还是比较匮乏的，但是幸好其代码短小精悍，很有可读性，遇到问题时总是习惯深入到其源码中。<br>这对于提升自己的Python水平和对于网络及HTTP的协议的理解也很有帮助。本文是Tornado源码系列的第一篇文章，网上关于Tornado源码分<br>析的文章也不少，大多是从Event loop入手，分析Event loop的工作原理，以及在其上如何构建TCPServer和HTTPServer。所以我就不想拾前<br>人的牙慧再去写一遍，当然这些内容我后续会涉及到，但是做为开篇第一章，我想从更加独特的角度来分析Tornado，这里就说说Tornado的gen<br>和concurrent两个模块， 这个话题网上似乎还不多，呵呵。</p>
+<p>设计从需求出发，要考证一段的代码为什么写成这样而不是那样， 首先要看代码解决了什么需求。 看下代码中的例子先:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">AsyncHandler</span><span class="params">(RequestHandler)</span>:</span></div><div class="line"><span class="meta">    @asynchronous</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get</span><span class="params">(self)</span>:</span></div><div class="line">        http_client = AsyncHTTPClient()</div><div class="line">        http_client.fetch(<span class="string">'http://example.com'</span>, callback=self.on_fetch)</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">on_fetch</span><span class="params">(self, response)</span>:</span></div><div class="line">        do_something_with_response(response)</div><div class="line">        self.render(<span class="string">'template.html'</span>)</div></pre></td></tr></table></figure>
+<p>经过gen.coroutine修饰之后上面的这段代码可以改为</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">GenAsyncHandler</span><span class="params">(RequestHandler)</span>:</span></div><div class="line"><span class="meta">    @gen.coroutine</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get</span><span class="params">(self)</span>:</span></div><div class="line">        http_client = AsyncHTTPClient()</div><div class="line">        response = <span class="keyword">yield</span> http_client.fetch(<span class="string">'http://example.com'</span>)</div><div class="line">        do_something_with_response(response)</div><div class="line">        self.render(<span class="string">'template.html'</span>)</div></pre></td></tr></table></figure>
+<p>初识这段代码觉得好神奇，其实gen.coroutine只不过是将一个基于callback的典型的异步调用适配成基于yield的伪同步，说是伪同步是因为代码流程上类<br>似同步，但是实际却是异步的。这样做有几个好处:<br>1。控制流跟同步类似，我们知道callback里去做控制流还是比较恶心的，就算nodejs里的async这样的模块，但是分支多起来也非常不好写。(爽)<br>2。可以共享变量，没有了callback，所有的本地变量在同一个作用域中。 (爽爽)<br>3。可以并行执行，yield可以抛出list或dict，并行执行其中的异步流程。(爽爽爽。。。此处省略一万个爽)</p>
+<p>神奇的gen.coroutine装饰器是怎么做到这一切的？让我首先买个关子，不是进入到gen里面分析coroutine和Runner这两核心的方法(类)，而是首先分析一些这<br>些方法(类)中用到的一些技术， 然后再回到coroutine装饰器和Runner类中。</p>
+<p>首先要理解的是generator是如何通过yield与外界进行通信的。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">test</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">print</span> (<span class="string">'step 1.......'</span>)</div><div class="line">    res = <span class="keyword">yield</span> <span class="number">10</span></div><div class="line">    <span class="keyword">print</span> (<span class="string">'step 2.......'</span>, res) (<span class="number">3</span>)</div><div class="line"></div><div class="line">gen = test()</div><div class="line">gen.send(<span class="keyword">None</span>) <span class="comment">#next(gen)  (1)</span></div><div class="line">data = gen.send(<span class="number">20</span>) (<span class="number">2</span>)</div><div class="line"><span class="keyword">print</span> (<span class="string">'yield out .....'</span>, data)</div></pre></td></tr></table></figure>
+<p>步骤1启动了generator，步骤2向generator内部发送数据，并通过yield向generator外部抛出结果10， 最后的执行结果是</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">step <span class="number">1.</span>......</div><div class="line">step <span class="number">2.</span>...... <span class="number">20</span></div><div class="line"><span class="keyword">yield</span> out ..... <span class="number">10</span></div></pre></td></tr></table></figure>
+<p>然后让我再说说Future，Future是对异步调用结果的封装。一个callback型的异步调用的执行结果不仅包括调用的返回，还包括调用获得返回之后需要执行的回调，所以才需要将<br>异步调用的结果封装一下，作为一个异步调用执行结果的占位符。Future类基本可以这么写</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">class Future(object):</div><div class="line">    def __init__(self):</div><div class="line">        self._callback = []</div><div class="line">        self._result = None</div><div class="line">        self._done = False</div><div class="line"></div><div class="line">    def set_callback(self, cb):</div><div class="line">        self._callback.append(cb)</div><div class="line"></div><div class="line">    def _run_callback(self):</div><div class="line">        for cb in self._callback:</div><div class="line">            cb()</div><div class="line"></div><div class="line">    def set_result(self, result)</div><div class="line">        self._done = True</div><div class="line">        self._result = result</div><div class="line">        self._run_callback()</div><div class="line"></div><div class="line">    def is_ready(self):</div><div class="line">        return self._done is True</div></pre></td></tr></table></figure>
+<p>当然这只是个简约版的，详细可以参看concurrent.Future。</p>
+<p>最后再来说说另一个重要的函数Task， 这个函数的主要作用是将一个callback型的异步调用适配成一个返回Future的异步调用，而这个作为异步调用结果的Future会在原来的那个callback被时解析出来</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">Task</span><span class="params">(func, *args, **kwargs)</span>:</span></div><div class="line">    future = Future</div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">set_result</span><span class="params">(result)</span>:</span></div><div class="line">        <span class="keyword">if</span> future.done():</div><div class="line">            <span class="keyword">return</span></div><div class="line">        future.set_result(result)</div><div class="line"></div><div class="line">    func(*args, callback=_argument_adapter(set_result), **kwargs)</div><div class="line">    <span class="keyword">return</span> future</div></pre></td></tr></table></figure>
+<p>这里忽略了一些与本文无关的部分。可以看到Task里面构造了一个callback，_argument_adapter是将callback的参数进行适配，将不定参数适配成一个参数也就是result， 最后通过<br>future.set_result(result)将result赋值给future，这样future就被解析出来。 那么问题来了，AsyncHTTPClient并没有经过Task的适配，而是直接返回一个Future。这个Future是在<br>什么时候解析的呢？进httpclient.py来看下AsyncHTTPClient是如何解析Future的，这是httpclient.py中的fetch函数，也就是我们实际发起http请求的那个函数</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">fetch</span><span class="params">(self, request, callback=None, raise_error=True, **kwargs)</span>:</span></div><div class="line">    .....</div><div class="line">    future = TracebackFuture()</div><div class="line">    <span class="keyword">if</span> callback <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">        callback = stack_context.wrap(callback)</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">def</span> <span class="title">handle_future</span><span class="params">(future)</span>:</span></div><div class="line">            exc = future.exception()</div><div class="line">            <span class="keyword">if</span> isinstance(exc, HTTPError) <span class="keyword">and</span> exc.response <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">                response = exc.response</div><div class="line">            <span class="keyword">elif</span> exc <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">                response = HTTPResponse(</div><div class="line">                    request, <span class="number">599</span>, error=exc,</div><div class="line">                    request_time=time.time()-request.start_time</div><div class="line">                )</div><div class="line">            <span class="keyword">else</span>:</div><div class="line">                response = future.result()</div><div class="line">            self.io_loop.add_callback(callback, response)</div><div class="line">        future.add_done_callback(handle_future)</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_response</span><span class="params">(response)</span>:</span></div><div class="line">        <span class="keyword">if</span> raise_error <span class="keyword">and</span> response.error:</div><div class="line">            future.set_exception(response.error)</div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            future.set_result(response)</div><div class="line">    self.fetch_impl(request, handle_response)</div><div class="line">    <span class="keyword">return</span> future</div></pre></td></tr></table></figure>
+<p>fetch中定义一个代表fetch异步调用执行结果的future，如果调用时传入了callback，并不是直接将callback传给fetch_impl，而是首先给future设置一个名为handle_future解析完成后的回调，这个handle_future<br>中通过add_callback把实际传进来的callback加入到IOLoop中让IOLoop规划其调用。而传入到fetch_impl中的callback 则换成被了handle_response这个函数，<br>fetch_impl最后会在当收到response的时候调用handle_response回调(这个有兴趣可以看下，如果以后有写httpserver相关的分析可能会再分析), handle_response会解析出代表执行结果的future。对没有设置callback的调用，future解析结束整个流程也就结束了。而对于设置了callback的调用，future完成之后会调用handle_future 。<br>画个简图来描述一下调用过程<br>fetch-&gt;fetch_impl-&gt;HTTP请求直到有response或出错，如果有response回调handle_response-&gt;future.set_result(response)(future有值了)-&gt;如果fetch带了callback则handle_future-&gt;ioloop中调用callback<br>至此可以看到AsyncHTTPClient是如何把一个callback型的异步调用转换成一个返回future的异步调用，而这个future会在handle_response调用时被解析得到返回的response。</p>
+<p>好了，差不多该深入gen.coroutine这个装饰器以及其最终实现Runner类。其实看完上面的内容gen.coroutine和Runner的作用也呼之欲出，其主要功能就是拿到yield出的异步调用返回的future，看这个<br>future是否已经完成，如果完成就把结果再send到generator中，如果没有完成就要为future设置一个完成时回调，这个回调的主要作用就是启动Runner(也就是调用run方法)。至于future啥时候完成，这个<br>gen.coroutine和Runner可不管，你必须设计一个AsyncHTTPClient中fetch那样的返回Future的异步调用或者用Task封装一下你的带有callback的异步调用。下面是节选gen.coroutine装饰器中主要方法<br>_make_coroutine_wrapper的代码的主要部分</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">try</span>:</div><div class="line">    yielded = next(result)</div><div class="line"><span class="keyword">except</span> (StopIteration， Return) <span class="keyword">as</span> e:</div><div class="line">    future.set_result(getattr(e, <span class="string">'value'</span>, <span class="keyword">None</span>))</div><div class="line"><span class="keyword">except</span> Exception:</div><div class="line">    future.set_exc_info(sys.exc_info())</div><div class="line"><span class="keyword">else</span>:</div><div class="line">    Runner(result, future, yielded)</div></pre></td></tr></table></figure>
+<p>result就是被装饰的函数返回的generator，next启动这个generator， 如果generator抛出StopIteration和Return两个异常，表示generator已经解析出结果，将这个结果设置给最后coroutine返回的<br>future。如果有其他异常表示generator执行过程中发生了异常，将异常设置到future中。排除这两种情况，表示generator还没有执行完毕，调用Runner执行generator。Runner的参数result就是还没<br>有运行完毕generator， future是代表coroutine执行结果的那个future， 而yielded是func返回的future(或者YieldPoint，咱们只考虑future的情况)。再深入到Runner中，主要有两个函数handle_yield<br>和run，handle_yield主要是确定generator返回的yielded是否是一个执行完成的yielded(对于yielded是future的情况来说就是future.is_ready() == True)，如果没有执行完成则需要设置future完成时<br>执行run方法，也就是future.add_done_callback(future, lambda f:self.run())并返回False也就是不执行马上run， 否则返回True并立即执行run方法，因为这时候已经有异步调用的结果了。<br>run方法拿到yielded的执行结果，并传入到generator中。这样generator内部就能通过yield拿到异步调用的执行结果了。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line"> <span class="function"><span class="keyword">def</span> <span class="title">handle_yield</span><span class="params">(self, yielded)</span>:</span></div><div class="line">    <span class="comment">#处理YieldPoint忽略掉，但是原理跟Future是一样的</span></div><div class="line">    <span class="keyword">try</span>:</div><div class="line">        self.future = convert_yielded(yielded)</div><div class="line">    <span class="keyword">except</span> BadYieldError:</div><div class="line">        self.future = TracebackFuture()</div><div class="line">        self.future.set_exc_info(sys.exc_info())</div><div class="line"></div><div class="line">    <span class="keyword">if</span> <span class="keyword">not</span> self.future.done() <span class="keyword">or</span> self.future <span class="keyword">is</span> moment:</div><div class="line">        self.io_loop.add_future(</div><div class="line">            self.future, <span class="keyword">lambda</span> f: self.run())</div><div class="line">        <span class="keyword">return</span> <span class="keyword">False</span></div><div class="line">    <span class="keyword">return</span> <span class="keyword">True</span></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="keyword">if</span> self.running <span class="keyword">or</span> self.finished:</div><div class="line">            <span class="keyword">return</span></div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            self.running = <span class="keyword">True</span></div><div class="line">            <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">                future = self.future</div><div class="line">                <span class="keyword">if</span> <span class="keyword">not</span> future.done(): <span class="comment">#执行run时generator返回的那个future必须已经有结果，否则就没必要传回到generator中了</span></div><div class="line">                    <span class="keyword">return</span></div><div class="line">                self.future = <span class="keyword">None</span></div><div class="line">                <span class="keyword">try</span>:</div><div class="line">                    orig_stack_contexts = stack_context._state.contexts</div><div class="line">                    exc_info = <span class="keyword">None</span></div><div class="line"></div><div class="line">                    <span class="keyword">try</span>:</div><div class="line">                        value = future.result()</div><div class="line">                    <span class="keyword">except</span> Exception:</div><div class="line">                        self.had_exception = <span class="keyword">True</span></div><div class="line">                        exc_info = sys.exc_info()</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> exc_info <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line">                        yielded = self.gen.throw(*exc_info)</div><div class="line">                        exc_info = <span class="keyword">None</span></div><div class="line">                    <span class="keyword">else</span>:</div><div class="line">                        yielded = self.gen.send(value)</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> stack_context._state.contexts <span class="keyword">is</span> <span class="keyword">not</span> orig_stack_contexts:</div><div class="line">                        self.gen.throw(</div><div class="line">                            stack_context.StackContextInconsistentError(</div><div class="line">                                <span class="string">'stack_context inconsistency (probably caused '</span></div><div class="line">                                <span class="string">'by yield within a "with StackContext" block)'</span>))</div><div class="line">                <span class="keyword">except</span> (StopIteration, Return) <span class="keyword">as</span> e:</div><div class="line">                    <span class="comment">#generator执行完毕并成功的处理</span></div><div class="line">                <span class="keyword">except</span> Exception:</div><div class="line">                    <span class="comment">#generator执行过程中异常的处理</span></div><div class="line">                <span class="keyword">if</span> <span class="keyword">not</span> self.handle_yield(yielded):</div><div class="line">                    <span class="comment">#这里generator还没有执行完毕，yielded是generator迭代过一次之后返回的新yielded。如果yieled还没有被解析出结果就通过handle_yield给yieled设置完成时的重启run的回调,</span></div><div class="line">                    <span class="comment">#否则yielded已经有结果，就再次运行run，所以run中才会有一个循环</span></div><div class="line">                    <span class="keyword">return</span></div><div class="line">        <span class="keyword">finally</span>:</div><div class="line">            self.running = <span class="keyword">False</span></div></pre></td></tr></table></figure>
+<p>分析完毕，没看懂的同学可以在读两遍代码，主要还是要抓住coroutine装饰器只不过是将callback型调用转换成generator型伪同步调用的一个适配器这个关键点，阅读起代码来就明白多了。期待下篇吧，准备<br>写stack_context异步调用中的异常捕获问题</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/原创/" rel="tag"># 原创</a>
+          
+            <a href="/tags/Python/" rel="tag"># Python</a>
+          
+            <a href="/tags/Tornado/" rel="tag"># Tornado</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2015/06/23/first-blog/" rel="next" title="我的第一个博客">
+                <i class="fa fa-chevron-left"></i> 我的第一个博客
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2015/07/14/tornado-source-insight-02-stack-context-md/" rel="prev" title="Tornado源码分析系列之二: 让异常无处可逃的stack_context">
+                Tornado源码分析系列之二: 让异常无处可逃的stack_context <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div class="ds-thread" data-thread-key="2015/06/24/tornado-source-insight-01-gen/"
+           data-title="Tornado源码分析系列之一: 化异步为'同步'的Future和gen.coroutine" data-url="http://yoursite.com/2015/06/24/tornado-source-insight-01-gen/">
+      </div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview sidebar-panel sidebar-panel-active">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.gif"
+               alt="nathon.wang" />
+          <p class="site-author-name" itemprop="name">nathon.wang</p>
+          <p class="site-description motion-element" itemprop="description">编程、技术、生活、人生种种</p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">5</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+          <div class="feed-link motion-element">
+            <a href="/atom.xml" rel="alternate">
+              <i class="fa fa-rss"></i>
+              RSS
+            </a>
+          </div>
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2016</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">nathon.wang</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+  
+    
+  
+
+  <script type="text/javascript">
+    var duoshuoQuery = {short_name:"nathon-wang"};
+    (function() {
+      var ds = document.createElement('script');
+      ds.type = 'text/javascript';ds.async = true;
+      ds.id = 'duoshuo-script';
+      ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+      ds.charset = 'UTF-8';
+      (document.getElementsByTagName('head')[0]
+      || document.getElementsByTagName('body')[0]).appendChild(ds);
+    })();
+  </script>
+
+  
+    
+    
+    <script src="/lib/ua-parser-js/dist/ua-parser.min.js?v=0.7.9"></script>
+    <script src="/js/src/hook-duoshuo.js"></script>
+  
+
+
+
+
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>
