@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2016-11-29T10:20:22.000Z</updated>
+  <updated>2016-11-29T11:52:59.000Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -20,9 +20,9 @@
     <link href="http://yoursite.com/2016/11/29/thumbnail-convert-prevent-steal/"/>
     <id>http://yoursite.com/2016/11/29/thumbnail-convert-prevent-steal/</id>
     <published>2016-11-29T10:20:30.000Z</published>
-    <updated>2016-11-29T10:20:22.000Z</updated>
+    <updated>2016-11-29T11:52:59.000Z</updated>
     
-    <content type="html"><![CDATA[<p><img src="thumbnail-convert.png" alt="基本的缩略图生成流程图"></p>
+    <content type="html"><![CDATA[<p><img src="thumbnail-convert.jpg" alt="基本的缩略图生成流程图"></p>
 <p>一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚拟目录，只要复制这个地址就可以绕过<br>验证机制随时访问缩略图，这很显然不是我们想要的。<br>我们的需求是：</p>
 <ol>
 <li>通过step1发起的请求能够正常访问缩略图，注意step1是有认证的请求</li>
@@ -42,7 +42,7 @@
     
     <summary type="html">
     
-      &lt;p&gt;&lt;img src=&quot;thumbnail-convert.png&quot; alt=&quot;基本的缩略图生成流程图&quot;&gt;&lt;/p&gt;
+      &lt;p&gt;&lt;img src=&quot;thumbnail-convert.jpg&quot; alt=&quot;基本的缩略图生成流程图&quot;&gt;&lt;/p&gt;
 &lt;p&gt;一个基本的缩略图生成流程如上图所示，最后生成的缩略图缓存储在服务器的本地缓存，通过nginx的虚拟目录机制，客户端可以进行下载。但是存在一个问题，因为通过虚
     
     </summary>
