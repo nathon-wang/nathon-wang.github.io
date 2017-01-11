@@ -99,7 +99,8 @@
 <meta property="og:image" content="http://blog.nathon.wang/img/aj_direct_children.jpg">
 <meta property="og:image" content="http://blog.nathon.wang/img/aj_direct_parent.jpg">
 <meta property="og:image" content="http://blog.nathon.wang/img/aj_sub_children.jpg">
-<meta property="og:updated_time" content="2017-01-11T09:04:11.000Z">
+<meta property="og:image" content="http://blog.nathon.wang/img/pe_basic.jpg">
+<meta property="og:updated_time" content="2017-01-11T09:18:00.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="使用关系型数据库表示树形结构">
 <meta name="twitter:description" content="树形结构是很自然、常用的一种数据结构，比如公司的组织架构、目录树、某些分类系统。但是我们目前的数据系统大多是关系型的与树形结构天然异构，所以用关系型数据库存储树状结构往往很复杂。要想在关系数据库中存树形结构主要有以下四种方案邻接表(Adjacency list)路径枚举(Path enumeration)嵌套集合(Nested sets)闭包表(Closure table)
@@ -347,60 +348,11 @@
 <p>在节点5上插入节点9<br>INSERT INTO <code>Node_al</code> VALUES (9, ‘N9’, 5);</p>
 </blockquote>
 </blockquote>
-<h3 id="路径枚举"><a href="#路径枚举" class="headerlink" title="路径枚举"></a>路径枚举</h3><p>路径枚举指的是将节点的路径作为一个字段存到数据表中，比如下面这样</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:center">id</th>
-<th style="text-align:center">name</th>
-<th style="text-align:center">path</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:center">1</td>
-<td style="text-align:center">N1</td>
-<td style="text-align:center">0/</td>
-</tr>
-<tr>
-<td style="text-align:center">2</td>
-<td style="text-align:center">N2</td>
-<td style="text-align:center">0/1/2/</td>
-</tr>
-<tr>
-<td style="text-align:center">3</td>
-<td style="text-align:center">N3</td>
-<td style="text-align:center">0/1/3/</td>
-</tr>
-<tr>
-<td style="text-align:center">4</td>
-<td style="text-align:center">N4</td>
-<td style="text-align:center">0/1/2/4/</td>
-</tr>
-<tr>
-<td style="text-align:center">5</td>
-<td style="text-align:center">N5</td>
-<td style="text-align:center">0/1/2/5/</td>
-</tr>
-<tr>
-<td style="text-align:center">6</td>
-<td style="text-align:center">N6</td>
-<td style="text-align:center">0/1/3/6/</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">N7</td>
-<td style="text-align:center">0/1/3/7/</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">N8</td>
-<td style="text-align:center">0/1/2/4/8/</td>
-</tr>
-</tbody>
-</table>
+<p>对于移动操作，邻接表无需进行删除重建，而只需要更新parent_id即可</p>
+<h3 id="路径枚举"><a href="#路径枚举" class="headerlink" title="路径枚举"></a>路径枚举</h3><p>路径枚举指的是将节点的路径作为一个字段存到数据表中，比如下面这样<br>CREATE TABLE <code>Node_pe</code> (<br>    <code>id</code> INT(10) NOT NULL,<br>    <code>name</code> VARCHAR(10) NOT NULL,<br>    <code>path</code> VARCHAR(128) NOT NULL,<br>    PRIMARY KEY(id)<br>);</p>
+<p>INSERT INTO <code>Node_pe</code> VALUES (1, ‘N1’, ‘/1’), (2, ‘N2’, ‘/1/2’), (3, ‘N3’, ‘/1/3’), (4, ‘N4’, ‘/1/2/4’), (5, ‘N5’, ‘/1/2/5’), (6, ‘N6’, ‘/1/3/6’), (7, ‘N7’, ‘/1/3/7’), (8, ‘N8’, ‘/1/2/4/8’);<br>最后的表如下图<br><img src="/img/pe_basic.jpg" alt="路径枚举"></p>
 <p>这样做的好处就是无需计算一个节点所在的路径，因为已经存在表中了</p>
-<p>考察以上7种操作</p>
+<p>考察以上5种操作</p>
 <blockquote>
 <blockquote>
 <p>求节点2的所有直接子节点<br>SELECT * FROM Node WHERE REGEXP ‘^[0-9/]/2/[0-9]+/$’;</p>
@@ -665,8 +617,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2016/11/29/thumbnail-convert-prevent-steal/" rel="next" title="使用OpenResty防缩略图盗链">
-                <i class="fa fa-chevron-left"></i> 使用OpenResty防缩略图盗链
+              <a href="/2016/11/28/new-start/" rel="next" title="计划：过去，现在与未来">
+                <i class="fa fa-chevron-left"></i> 计划：过去，现在与未来
               </a>
             
           </div>
@@ -745,7 +697,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">7</span>
+              <span class="site-state-item-count">6</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
@@ -755,7 +707,7 @@
           
             <div class="site-state-item site-state-tags">
               <a href="/tags">
-                <span class="site-state-item-count">7</span>
+                <span class="site-state-item-count">6</span>
                 <span class="site-state-item-name">标签</span>
               </a>
             </div>
