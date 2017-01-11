@@ -95,7 +95,11 @@
 <meta property="og:description" content="树形结构是很自然、常用的一种数据结构，比如公司的组织架构、目录树、某些分类系统。但是我们目前的数据系统大多是关系型的与树形结构天然异构，所以用关系型数据库存储树状结构往往很复杂。要想在关系数据库中存树形结构主要有以下四种方案邻接表(Adjacency list)路径枚举(Path enumeration)嵌套集合(Nested sets)闭包表(Closure table)
 以以下树形结构为例，说">
 <meta property="og:image" content="http://blog.nathon.wang/img/mysql_tree.jpg">
-<meta property="og:updated_time" content="2016-12-30T08:10:11.000Z">
+<meta property="og:image" content="http://blog.nathon.wang/img/aj_list_basic.jpg">
+<meta property="og:image" content="http://blog.nathon.wang/img/aj_direct_children.jpg">
+<meta property="og:image" content="http://blog.nathon.wang/img/aj_direct_parent.jpg">
+<meta property="og:image" content="http://blog.nathon.wang/img/aj_sub_children.jpg">
+<meta property="og:updated_time" content="2017-01-11T09:04:11.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="使用关系型数据库表示树形结构">
 <meta name="twitter:description" content="树形结构是很自然、常用的一种数据结构，比如公司的组织架构、目录树、某些分类系统。但是我们目前的数据系统大多是关系型的与树形结构天然异构，所以用关系型数据库存储树状结构往往很复杂。要想在关系数据库中存树形结构主要有以下四种方案邻接表(Adjacency list)路径枚举(Path enumeration)嵌套集合(Nested sets)闭包表(Closure table)
@@ -327,28 +331,306 @@
       
         <p>树形结构是很自然、常用的一种数据结构，比如公司的组织架构、目录树、某些分类系统。但是我们目前的数据系统大多是关系型的与树形结构天然异构，所以用关系型数据库存储树状结构往往很复杂。<br>要想在关系数据库中存树形结构主要有以下四种方案<br>邻接表(Adjacency list)<br>路径枚举(Path enumeration)<br>嵌套集合(Nested sets)<br>闭包表(Closure table)</p>
 <p>以以下树形结构为例，说下这四种树形结构存储方式的利弊<br><img src="/img/mysql_tree.jpg" alt="一颗树"><br>先考虑实际使用场景，常见的树形结构的操作有以下7种</p>
-<p>1.给定节点求所有直接子节点<br>2.给定节点求其父节点<br>3.给定节点求节点子树<br>4.给定节点求节点到根的路径<br>5.移动节点及所在的子树<br>6.删除节点及所在子树<br>7.插入一个新节点</p>
-<p>###邻接表<br>邻接表是最简单的表示树形结构的方法，因为子节点与其父节点是一对一的关系，邻接表在节点表中存储每个节点的父节点。当然这种做法的问题就是，如果你想求一个节点的子节点，相当麻烦。。。<br>|id|name|parent_id|<br>|——|——|———|<br>|1|node1 |0|<br>|2|node2 |1|<br>|3|node3 |1|<br>|4|node4 |2|<br>|5|node5 |3|<br>|6|node6 |3|<br>|7|node7 |4|<br>|8|node8 |4|</p>
+<p>1.给定节点求直接子节点<br>2.给定节点求其父节点<br>3.给定节点求节点及其节点子树<br>4.给定节点求节点到根的路径<br>5.移动节点及所在的子树<br>6.删除节点及所在子树<br>7.插入一个新节点</p>
+<p>操作6跟操作3实际是相同的，只不过一个是SELECT，一个是DELETE。操作5移动节点，实际是选取节点及子树进行删除，然后按照规则在目标节点下进行INSERT的复合操作，也就是6+7。<br>所以实际就是下面5中操作</p>
+<p>1.给定节点求直接子节点<br>2.给定节点求其父节点<br>3.给定节点求节点子树<br>4.给定节点求节点到根的路径<br>5.插入一个新节点</p>
+<h3 id="邻接表"><a href="#邻接表" class="headerlink" title="邻接表"></a>邻接表</h3><p>邻接表是最简单的表示树形结构的方法，因为子节点与其父节点是一对一的关系，邻接表在节点表中存储每个节点的父节点。当然这种做法的问题就是，如果你想求一个节点的子节点，相当麻烦。。。</p>
+<p>CREATE TABLE <code>Node_al</code> (<br>    <code>id</code> INT(10) NOT NULL,<br>    <code>name</code> VARCHAR(10) NOT NULL,<br>    <code>parent_id</code> INT(10) NOT NULL,<br>    PRIMARY KEY(id)<br>);</p>
+<p>INSERT INTO <code>Node_al</code> VALUES (1, ‘N1’, 0), (2, ‘N2’, 1), (3, ‘N3’, 1), (4, ‘N4’, 2), (5, ‘N5’, 3), (6, ‘N6’, 3), (7, ‘N7’, 4), (8, ‘N8’, 4);<br>最后的表如下图<br><img src="/img/aj_list_basic.jpg" alt="邻接表"></p>
+<p>考察以上5种操作</p>
+<blockquote>
+<blockquote>
+<p>求节点1的所有直接子节点<br>因为有parent_id， 所以只需SELECT所有parent_id=目标ID的节点就能够获得其直接子节点<br><img src="/img/aj_direct_children.jpg" alt="邻接表求直接子节点"></p>
+<p>求节点2的父节点<br><img src="/img/aj_direct_parent.jpg" alt="邻接表求直接子节点"></p>
+<p>求节点1的所有子孙节点<br>求一个节点的子节点节点需要左连接一次，我们要从根节点到叶子节点有多少层就需要左连接多少次。为了清晰，我只取id<br><img src="/img/aj_sub_children.jpg" alt="邻接表求所有子节点"></p>
+<p>求节点8到根的路径<br>求到跟的路径需要一个循环依次找到路径上每个节点的父节点，直到根</p>
+<p>在节点5上插入节点9<br>INSERT INTO <code>Node_al</code> VALUES (9, ‘N9’, 5);</p>
+</blockquote>
+</blockquote>
+<h3 id="路径枚举"><a href="#路径枚举" class="headerlink" title="路径枚举"></a>路径枚举</h3><p>路径枚举指的是将节点的路径作为一个字段存到数据表中，比如下面这样</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">id</th>
+<th style="text-align:center">name</th>
+<th style="text-align:center">path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:center">N1</td>
+<td style="text-align:center">0/</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">N2</td>
+<td style="text-align:center">0/1/2/</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">N3</td>
+<td style="text-align:center">0/1/3/</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">N4</td>
+<td style="text-align:center">0/1/2/4/</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">N5</td>
+<td style="text-align:center">0/1/2/5/</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">N6</td>
+<td style="text-align:center">0/1/3/6/</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">N7</td>
+<td style="text-align:center">0/1/3/7/</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">N8</td>
+<td style="text-align:center">0/1/2/4/8/</td>
+</tr>
+</tbody>
+</table>
+<p>这样做的好处就是无需计算一个节点所在的路径，因为已经存在表中了</p>
 <p>考察以上7种操作</p>
 <blockquote>
 <blockquote>
-<p>求节点1的所有字节子节点<br>SELECT * FROM Node WHERE parent_id = 1;</p>
+<p>求节点2的所有直接子节点<br>SELECT * FROM Node WHERE REGEXP ‘^[0-9/]/2/[0-9]+/$’;</p>
 <p>求节点2的父节点<br>SELECT n1.* FROM Node n1 JOIN Node n2 ON n1.id = n2.parent_id WHERE n2.id = 2;</p>
-<p>求节点2的所有子孙节点<br>求一个节点的父节点需要内连接一次，我们要从叶子节点求其父节点，然后求其父节点的父节点，直到满足条件node_id = 2。有多少层就要连接多少次，</p>
+<p>求节点2的所有子孙节点<br>求一个节点的父节点需要内连接一次，我们要从叶子节点求其父节点，然后求其父节点的父节点，直到满足条件node_id = 2。有多少层就要连接多少次，所以如果你有很多求子树的操作，而且树很深，此方式不适用</p>
+<p>求节点8到根的路径<br>SELECT path FROM Node WHERE node_id = 8;</p>
+<blockquote>
+<p>移动节点4及其所在的子树到节点5<br>因为一个节点只与上层的父节点关联所以移动节点非常简单，只需改变需要移动的子树的根<br>UPDATE Node SET parent_id = 5 WHERE node_id = 4;</p>
+</blockquote>
+<p>删除节点及所在子树<br>同求节点的子孙节点，需要锁定读之后执行删除操作</p>
+<p>在节点5上插入节点9<br>INSERT INTO Node VALUES (9, ‘Node9’, 5);</p>
 </blockquote>
 </blockquote>
-<p>4、给定节点求节点到根的路径<br>NO！</p>
-<p>5、移动节点及其所在的子树<br>因为一个节点只与上层的父节点关联所以移动节点非常简单，只需改变需要移动的子树的根<br>UPDATE Node SET parent_id = xxx WHERE node_id = zzzz</p>
-<p>6、删除节点及所在子树<br>NO！</p>
-<p>7、插入一个新节点</p>
-<p>INSERT INTO Node VALUES (NULL, NX, parent_id);</p>
-<p>2、路径枚举<br>路径枚举指的是将节点的路径作为一个字段存到数据表中，比如下面这样<br>1     N1    0/<br>2     N2    1/2/<br>3     N3    1/3/<br>4     N4    1/2/4/<br>5     N5    1/2/5/<br>6     N6    1/3/6/<br>7     N7    1/3/7/<br>8     N8    1/2/4/8/</p>
-<p>这样做的好处就是无需计算一个节点所在的路径，因为已经存在表中了</p>
-<p>1、求给点节点所有的子节点<br>No</p>
-<p>2、给定节点求其父节点<br>SELECT * FROM Node WHERE node_id = x</p>
-<p>3、给定节点求</p>
-<p>3、嵌套集</p>
-<p>4、闭包表</p>
+<h3 id="嵌套集"><a href="#嵌套集" class="headerlink" title="嵌套集"></a>嵌套集</h3><p>嵌套集合将树形结构想象成一系列的集合，比如下面这样</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">id</th>
+<th style="text-align:center">name</th>
+<th style="text-align:center">left</th>
+<th style="text-align:center">right</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:center">N1</td>
+<td style="text-align:center">1</td>
+<td style="text-align:center">16</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">N2</td>
+<td style="text-align:center">2</td>
+<td style="text-align:center">9</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">N3</td>
+<td style="text-align:center">10</td>
+<td style="text-align:center">15</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">N4</td>
+<td style="text-align:center">3</td>
+<td style="text-align:center">8</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">N5</td>
+<td style="text-align:center">11</td>
+<td style="text-align:center">12</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">N6</td>
+<td style="text-align:center">13</td>
+<td style="text-align:center">14</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">N7</td>
+<td style="text-align:center">4</td>
+<td style="text-align:center">5</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">N8</td>
+<td style="text-align:center">6</td>
+<td style="text-align:center">7</td>
+</tr>
+</tbody>
+</table>
+<p>考察以上7种操作</p>
+<blockquote>
+<blockquote>
+<p>求节点2的所有直接子节点<br>SELECT * FROM Node AS current, Node AS parent WHERE current.left &gt; parent.left AND current.right &lt; parent.right AND current.id = 2;</p>
+<p>求节点2的父节点<br>SELECT * FROM Node AS current, Node AS parent WHERE current.left &gt; parent.left AND current.node_id = 2 ORDER BY parent.left DESC LIMIT 1;</p>
+<p>求节点2的所有子孙节点<br>求一个节点的父节点需要内连接一次，我们要从叶子节点求其父节点，然后求其父节点的父节点，直到满足条件node_id = 2。有多少层就要连接多少次，所以如果你有很多求子树的操作，而且树很深，此方式不适用</p>
+<p>求节点8到根的路径<br>SELECT path FROM Node WHERE node_id = 8;</p>
+<blockquote>
+<p>移动节点4及其所在的子树到节点5<br>因为一个节点只与上层的父节点关联所以移动节点非常简单，只需改变需要移动的子树的根<br>UPDATE Node SET parent_id = 5 WHERE node_id = 4;</p>
+</blockquote>
+<p>删除节点及所在子树<br>同求节点的子孙节点，需要锁定读之后执行删除操作</p>
+<p>在节点5上插入节点9<br>INSERT INTO Node VALUES (9, ‘Node9’, 5);</p>
+</blockquote>
+</blockquote>
+<h3 id="闭包表"><a href="#闭包表" class="headerlink" title="闭包表"></a>闭包表</h3><p>Node表</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">id</th>
+<th style="text-align:center">name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:center">N1</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">N2</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">N3</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">N4</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">N5</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">N6</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">N7</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">N8</td>
+</tr>
+</tbody>
+</table>
+<p>Tree表</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">node_id</th>
+<th style="text-align:center">ancestor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">2</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">2</td>
+</tr>
+<tr>
+<td style="text-align:center">4</td>
+<td style="text-align:center">4</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">2</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">4</td>
+</tr>
+<tr>
+<td style="text-align:center">7</td>
+<td style="text-align:center">7</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">2</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">4</td>
+</tr>
+<tr>
+<td style="text-align:center">8</td>
+<td style="text-align:center">8</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">3</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">3</td>
+</tr>
+<tr>
+<td style="text-align:center">5</td>
+<td style="text-align:center">5</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">1</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">3</td>
+</tr>
+<tr>
+<td style="text-align:center">6</td>
+<td style="text-align:center">6</td>
+</tr>
+</tbody>
+</table>
 
       
     </div>
@@ -442,8 +724,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview sidebar-panel sidebar-panel-active">
+      <section class="site-overview sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="/images/avatar.gif"
@@ -497,6 +788,22 @@
       </section>
 
       
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#邻接表"><span class="nav-number">1.</span> <span class="nav-text">邻接表</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#路径枚举"><span class="nav-number">2.</span> <span class="nav-text">路径枚举</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#嵌套集"><span class="nav-number">3.</span> <span class="nav-text">嵌套集</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#闭包表"><span class="nav-number">4.</span> <span class="nav-text">闭包表</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
 
     </div>
   </aside>
@@ -511,7 +818,7 @@
         <div class="copyright" >
   
   &copy; 
-  <span itemprop="copyrightYear">2016</span>
+  <span itemprop="copyrightYear">2017</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
