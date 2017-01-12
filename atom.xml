@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://blog.nathon.wang/"/>
-  <updated>2017-01-11T09:18:00.000Z</updated>
+  <updated>2017-01-12T07:42:43.000Z</updated>
   <id>http://blog.nathon.wang/</id>
   
   <author>
@@ -14,6 +14,202 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Python黑魔法系列--Cython与ffi</title>
+    <link href="http://blog.nathon.wang/2017/01/30/python-black-magic-10/"/>
+    <id>http://blog.nathon.wang/2017/01/30/python-black-magic-10/</id>
+    <published>2017-01-30T07:35:30.000Z</published>
+    <updated>2017-01-12T07:42:43.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--Inspect与自省</title>
+    <link href="http://blog.nathon.wang/2017/01/30/python-black-magic-9/"/>
+    <id>http://blog.nathon.wang/2017/01/30/python-black-magic-9/</id>
+    <published>2017-01-30T07:35:30.000Z</published>
+    <updated>2017-01-12T07:40:32.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--描述符</title>
+    <link href="http://blog.nathon.wang/2017/01/24/python-black-magic-8/"/>
+    <id>http://blog.nathon.wang/2017/01/24/python-black-magic-8/</id>
+    <published>2017-01-24T07:35:30.000Z</published>
+    <updated>2017-01-12T07:38:55.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--元类</title>
+    <link href="http://blog.nathon.wang/2017/01/23/python-black-magic-7/"/>
+    <id>http://blog.nathon.wang/2017/01/23/python-black-magic-7/</id>
+    <published>2017-01-23T07:35:30.000Z</published>
+    <updated>2017-01-12T07:38:45.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--Magic方法</title>
+    <link href="http://blog.nathon.wang/2017/01/19/python-black-magic-5/"/>
+    <id>http://blog.nathon.wang/2017/01/19/python-black-magic-5/</id>
+    <published>2017-01-19T07:35:30.000Z</published>
+    <updated>2017-01-12T07:37:42.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--上下文管理器</title>
+    <link href="http://blog.nathon.wang/2017/01/18/python-black-magic-4/"/>
+    <id>http://blog.nathon.wang/2017/01/18/python-black-magic-4/</id>
+    <published>2017-01-18T07:35:30.000Z</published>
+    <updated>2017-01-12T07:37:06.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--协程和异步IO</title>
+    <link href="http://blog.nathon.wang/2017/01/17/python-black-magic-3/"/>
+    <id>http://blog.nathon.wang/2017/01/17/python-black-magic-3/</id>
+    <published>2017-01-17T07:35:30.000Z</published>
+    <updated>2017-01-12T07:36:40.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--函式编程</title>
+    <link href="http://blog.nathon.wang/2017/01/16/python-black-magic-2/"/>
+    <id>http://blog.nathon.wang/2017/01/16/python-black-magic-2/</id>
+    <published>2017-01-16T07:35:30.000Z</published>
+    <updated>2017-01-12T07:36:28.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--迭代器和生成器</title>
+    <link href="http://blog.nathon.wang/2017/01/13/python-black-magic-1/"/>
+    <id>http://blog.nathon.wang/2017/01/13/python-black-magic-1/</id>
+    <published>2017-01-13T07:35:30.000Z</published>
+    <updated>2017-01-12T07:36:03.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系系列总目录</title>
+    <link href="http://blog.nathon.wang/2017/01/12/python-black-magic-0/"/>
+    <id>http://blog.nathon.wang/2017/01/12/python-black-magic-0/</id>
+    <published>2017-01-12T07:35:30.000Z</published>
+    <updated>2017-01-12T07:49:40.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>做Python也有七年多了，第一次接触Python是硕士毕业设计用swarm，在java环境里调用Python程序。从此入坑Python，并以此谋生，一直想写点关于Python的东西，这系列文章就是关于Python语言的一些高级话题。<br>主要包括以下几个主题，以后会陆续放出来</p>
+<pre><code>1. Python黑魔法系列--迭代器和生成器
+2. Python黑魔法系列--函式编程
+3. Python黑魔法系列--协程和异步IO
+4. Python黑魔法系列--上下文管理器
+5. Python黑魔法系列--Magic方法
+6. Python黑魔法系列--装饰器
+7. Python黑魔法系列--元类
+8. Python黑魔法系列--描述符
+9. Python黑魔法系列--inspect与自省
+10. Python黑魔法系列--Cython与ffi
+</code></pre><p>此系列适合熟悉Python语法并有一定Python编程基础的同志们，初学者阅读之后如有呕吐、头晕请及时就医。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;做Python也有七年多了，第一次接触Python是硕士毕业设计用swarm，在java环境里调用Python程序。从此入坑Python，并以此谋生，一直想写点关于Python的东西，这系列文章就是关于Python语言的一些高级话题。&lt;br&gt;主要包括以下几个主题，以后会陆续
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
+    
+  </entry>
   
   <entry>
     <title>使用关系型数据库表示树形结构</title>
@@ -287,6 +483,24 @@
       <category term="mysql" scheme="http://blog.nathon.wang/tags/mysql/"/>
     
       <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Python黑魔法系列--装饰器</title>
+    <link href="http://blog.nathon.wang/2016/11/29/python-black-magic-6/"/>
+    <id>http://blog.nathon.wang/2016/11/29/python-black-magic-6/</id>
+    <published>2016-11-29T10:20:30.000Z</published>
+    <updated>2017-01-12T07:30:41.000Z</updated>
+    
+    <summary type="html">
+    
+    </summary>
+    
+    
+      <category term="技术" scheme="http://blog.nathon.wang/tags/%E6%8A%80%E6%9C%AF/"/>
+    
+      <category term="python" scheme="http://blog.nathon.wang/tags/python/"/>
     
   </entry>
   
