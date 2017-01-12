@@ -522,7 +522,7 @@
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> <span class="string">`Node_pe`</span> <span class="keyword">VALUES</span> (<span class="number">9</span>, <span class="string">'N9'</span>, <span class="string">''</span>);</div><div class="line"><span class="keyword">SELECT</span> <span class="keyword">path</span> <span class="keyword">INTO</span> @parent_path <span class="keyword">FROM</span> <span class="string">`Node_pe`</span> <span class="keyword">WHERE</span> <span class="keyword">id</span> = <span class="number">5</span>;</div><div class="line"><span class="keyword">UPDATE</span> <span class="string">`Node_pe`</span> <span class="keyword">SET</span> <span class="keyword">path</span> = @parent_path||LASTER_INSERT_ID()||<span class="string">'/'</span> <span class="keyword">WHERE</span> <span class="keyword">id</span> = <span class="keyword">LAST_INSERT_ID</span>();</div></pre></td></tr></table></figure>
 </li>
 </ol>
-<h3 id="嵌套集"><a href="#嵌套集" class="headerlink" title="嵌套集"></a>嵌套集</h3><p>嵌套集合将树形结构想象成一系列的集合，比如下面这样<br><img src="/img/nest_set.jpg" alt="一个嵌套集合"><br><figure class="highlight sql"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`Node_ne`</span> (</div><div class="line">    <span class="string">`id`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`name`</span> <span class="built_in">VARCHAR</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`lft`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`rgh`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    PRIMARY <span class="keyword">KEY</span>(<span class="keyword">id</span>)</div><div class="line">);</div><div class="line"></div><div class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> <span class="string">`Node_ne`</span> <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'N1'</span>, <span class="number">1</span>, <span class="number">16</span>), (<span class="number">2</span>, <span class="string">'N2'</span>, <span class="number">2</span>, <span class="number">9</span>), (<span class="number">3</span>, <span class="string">'N3'</span>, <span class="number">10</span>, <span class="number">15</span>), (<span class="number">4</span>, <span class="string">'N4'</span>, <span class="number">3</span>, <span class="number">8</span>), (<span class="number">5</span>, <span class="string">'N5'</span>, <span class="number">11</span>, <span class="number">12</span>), (<span class="number">6</span>, <span class="string">'N6'</span>, <span class="number">13</span>, <span class="number">14</span>), (<span class="number">7</span>, <span class="string">'N7'</span>, <span class="number">4</span>, <span class="number">5</span>), (<span class="number">8</span>, <span class="string">'N8'</span>, <span class="number">6</span>, <span class="number">7</span>);</div></pre></td></tr></table></figure></p>
+<h3 id="嵌套集"><a href="#嵌套集" class="headerlink" title="嵌套集"></a>嵌套集</h3><p>嵌套集合将树形结构想象成一系列的集合，比如下面这样<br><img src="/img/nest_set.jpg" alt="一个嵌套集合"><br><figure class="highlight sql"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`Node_ne`</span> (</div><div class="line">    <span class="string">`id`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`name`</span> <span class="built_in">VARCHAR</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`lft`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`rgh`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    PRIMARY <span class="keyword">KEY</span>(<span class="keyword">id</span>)</div><div class="line">);</div><div class="line"></div><div class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> <span class="string">`Node_ne`</span> <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'N1'</span>, <span class="number">1</span>, <span class="number">16</span>), (<span class="number">2</span>, <span class="string">'N2'</span>, <span class="number">2</span>, <span class="number">9</span>), (<span class="number">3</span>, <span class="string">'N3'</span>, <span class="number">10</span>, <span class="number">15</span>), (<span class="number">4</span>, <span class="string">'N4'</span>, <span class="number">3</span>, <span class="number">8</span>), (<span class="number">5</span>, <span class="string">'N5'</span>, <span class="number">11</span>, <span class="number">12</span>), (<span class="number">6</span>, <span class="string">'N6'</span>, <span class="number">13</span>, <span class="number">14</span>), (<span class="number">7</span>, <span class="string">'N7'</span>, <span class="number">4</span>, <span class="number">5</span>), (<span class="number">8</span>, <span class="string">'N8'</span>, <span class="number">6</span>, <span class="number">7</span>);</div></pre></td></tr></table></figure></p>
 <p>考察以上5种操作：</p>
 <ol>
 <li><p>求节点2的所有直接子节点<br>似乎没有一个方法来求取，集合的强项是求解包含关系。所以可以辅助邻接表求取</p>
@@ -538,148 +538,20 @@
 </li>
 </ol>
 <p>是的，嵌套集并不是稳定的结构，如果你要插入一个需要改变这个节点右边所有节点的权重，于是有个种改变权重配置的方法，但是如果你的程序足够复杂，请不要花心事在这个上面</p>
-<h3 id="闭包表"><a href="#闭包表" class="headerlink" title="闭包表"></a>闭包表</h3><p>Node表</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:center">id</th>
-<th style="text-align:center">name</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:center">1</td>
-<td style="text-align:center">N1</td>
-</tr>
-<tr>
-<td style="text-align:center">2</td>
-<td style="text-align:center">N2</td>
-</tr>
-<tr>
-<td style="text-align:center">3</td>
-<td style="text-align:center">N3</td>
-</tr>
-<tr>
-<td style="text-align:center">4</td>
-<td style="text-align:center">N4</td>
-</tr>
-<tr>
-<td style="text-align:center">5</td>
-<td style="text-align:center">N5</td>
-</tr>
-<tr>
-<td style="text-align:center">6</td>
-<td style="text-align:center">N6</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">N7</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">N8</td>
-</tr>
-</tbody>
-</table>
-<p>Tree表</p>
-<table>
-<thead>
-<tr>
-<th style="text-align:center">node_id</th>
-<th style="text-align:center">ancestor</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:center">1</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">2</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">2</td>
-<td style="text-align:center">2</td>
-</tr>
-<tr>
-<td style="text-align:center">4</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">4</td>
-<td style="text-align:center">2</td>
-</tr>
-<tr>
-<td style="text-align:center">4</td>
-<td style="text-align:center">4</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">2</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">4</td>
-</tr>
-<tr>
-<td style="text-align:center">7</td>
-<td style="text-align:center">7</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">2</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">4</td>
-</tr>
-<tr>
-<td style="text-align:center">8</td>
-<td style="text-align:center">8</td>
-</tr>
-<tr>
-<td style="text-align:center">3</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">3</td>
-<td style="text-align:center">3</td>
-</tr>
-<tr>
-<td style="text-align:center">5</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">5</td>
-<td style="text-align:center">3</td>
-</tr>
-<tr>
-<td style="text-align:center">5</td>
-<td style="text-align:center">5</td>
-</tr>
-<tr>
-<td style="text-align:center">6</td>
-<td style="text-align:center">1</td>
-</tr>
-<tr>
-<td style="text-align:center">6</td>
-<td style="text-align:center">3</td>
-</tr>
-<tr>
-<td style="text-align:center">6</td>
-<td style="text-align:center">6</td>
-</tr>
-</tbody>
-</table>
+<h3 id="闭包表"><a href="#闭包表" class="headerlink" title="闭包表"></a>闭包表</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`Node_ct`</span> (</div><div class="line">    <span class="string">`id`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`name`</span> <span class="built_in">VARCHAR</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    PRIMARY <span class="keyword">KEY</span>(<span class="keyword">id</span>)</div><div class="line">);</div><div class="line"></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="string">`Node_ct_relation`</span> (</div><div class="line">    <span class="string">`node_id`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`ancestor`</span> <span class="built_in">INT</span>(<span class="number">10</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">);</div><div class="line"></div><div class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> <span class="string">`Node_ct`</span> <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">'N1'</span>), (<span class="number">2</span>, <span class="string">'N2'</span>), (<span class="number">3</span>, <span class="string">'N3'</span>), (<span class="number">4</span>, <span class="string">'N4'</span>), (<span class="number">5</span>, <span class="string">'N5'</span>), (<span class="number">6</span>, <span class="string">'N6'</span>), (<span class="number">7</span>, <span class="string">'N7'</span>), (<span class="number">8</span>, <span class="string">'N8'</span>);</div><div class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> <span class="string">`Node_ct_relation`</span> <span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="number">1</span>), (<span class="number">2</span>, <span class="number">1</span>), (<span class="number">2</span>, <span class="number">2</span>), (<span class="number">4</span>, <span class="number">1</span>), (<span class="number">4</span>, <span class="number">2</span>), (<span class="number">4</span>, <span class="number">4</span>), (<span class="number">7</span>, <span class="number">1</span>), (<span class="number">7</span>, <span class="number">2</span>), (<span class="number">7</span>, <span class="number">4</span>), (<span class="number">7</span>, <span class="number">7</span>), \</div><div class="line">(<span class="number">8</span>, <span class="number">1</span>), (<span class="number">8</span>, <span class="number">2</span>), (<span class="number">8</span>, <span class="number">4</span>), (<span class="number">8</span>, <span class="number">8</span>), (<span class="number">3</span>, <span class="number">1</span>), (<span class="number">3</span>, <span class="number">3</span>), (<span class="number">5</span>, <span class="number">1</span>), (<span class="number">5</span>, <span class="number">3</span>), (<span class="number">5</span>, <span class="number">5</span>), (<span class="number">6</span>, <span class="number">1</span>), (<span class="number">6</span>, <span class="number">3</span>), (<span class="number">6</span>, <span class="number">6</span>);</div></pre></td></tr></table></figure>
+<p>考察以上5种操作：</p>
+<ol>
+<li><p>求节点2的所有直接子节点</p>
+</li>
+<li><p>求节点2的父节点</p>
+</li>
+<li><p>求节点2的所有子孙节点</p>
+</li>
+<li><p>求节点8到根的路径</p>
+</li>
+<li><p>插入节点</p>
+</li>
+</ol>
 
           
         
